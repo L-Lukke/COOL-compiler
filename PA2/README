@@ -1,0 +1,41 @@
+Write-up for PA2
+----------------
+O primeiro passo para a implementação do lexer foi a definição de expressões regulares para os tokens da linguagem COOL, bem como o uso de start conditions (estados) do Flex para tratar contextos especiais. Foram utilizados os estados INITIAL (default), NESTED_COMMENT, LINE_COMMENT, STRING e STRING_ERROR, que serão explicados nos próximos parágrafos.
+
+O estado NESTED_COMMENT foi usado para tratar comentários aninhados, mantendo um contador de profundidade (comment_level). Sempre que o lexer encontra (*, a profundidade é incrementada; ao encontrar *), ela é decrementada. O retorno ao estado INITIAL ocorre quando essa profundidade volta a zero. Também foi implementado o tratamento de erro para o caso de fim de arquivo dentro de comentário.
+
+O estado LINE_COMMENT foi utilizado para ignorar todos os caracteres que sucedem  -- até o próximo \n ou até o fim do arquivo.
+
+O estado STRING foi usado para não interpretar o conteúdo de strings como código. Nesse estado, foram tratadas sequências de escape válidas, como \n, \t, \b e \f, além de escapes genéricos. Também foi implementado controle de tamanho máximo da string e detecção dos erros exigidos pela especificação, como string não terminada, EOF dentro de string, presença de caractere nulo e escaped null character.
+
+O estado STRING_ERROR foi criado para permitir que, após detectar erro em uma string, o lexer continue consumindo os caracteres até encontrar o fechamento da string, quebra de linha ou EOF, evitando que o restante da entrada seja interpretado incorretamente.
+
+A definição das expressões regulares foi feita de forma direta, seguindo as regras da linguagem COOL. Uma exceção é o caractere "_", que foi incluído na definição de LETTER, pois identificadores TYPEID e OBJECTID podem contê-lo após o primeiro caractere.
+
+A segunda parte da construção foi a definição das regras, com atenção especial para a posição de cada uma: expressões mais específicas foram colocadas antes das mais gerais. Assim, palavras-reservadas são reconhecidas antes de identificadores, evitando que sejam classificadas como OBJECTID ou TYPEID.
+
+Finalmente, o lexer foi extensivamente testado nos casos a seguir (que, salvo test.cl, foram gerados por IA).
+
+test.cl
+Teste básico com um programa COOL, fornecido pelo professor.
+
+test-token.cl
+Teste focado no reconhecimento de diferentes tokens da linguagem.
+
+test-comment.cl
+Teste de comentários, para verificar se comentários de linha e bloco estavam sendo reconhecidos normalmente.
+
+test-string.cl
+Teste de strings válidas, testando regras com sequências de escape (\n, \t, \b,\f).
+
+test-null_string.cl
+Teste de null character dentro de string, com um arquivo gerado por um código python.
+
+test-escaped_null_string.cl
+Teste de escaped null character, com um arquivo gerado por um código python.
+
+test-error.cl
+Teste com caracteres inválidos, como "#", "$", "?", etc.
+
+test-stress.cl
+Teste de estresse combinando múltiplos recursos da linguagem simultaneamente.

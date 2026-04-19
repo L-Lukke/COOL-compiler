@@ -1,0 +1,30 @@
+Write-up for PA3
+----------------
+A construção da gramática foi feita de modo incremental, começando pelas estruturas de mais alto nível:  programa, classes e features; e depois avançando para expressões, listas e casos especiais de recuperação de erro.
+
+A regra inicial definida foi program, responsável por reconhecer uma sequência de classes e construir a raiz da AST. Para isso, também foram criadas regras auxiliares para listas, como class_list, features, formal_list, block_items, branches e actual_list. Essas produções foram combinadas com funções auxiliares como make_class_list, append_class_if_valid e append_feature_if_valid, de forma a simplificar a montagem das listas da AST e evitar a inserção de nós inválidos quando uma produção falha por erro sintático.
+
+A segunda parte da implementação consistiu em associar ações semânticas a cada produção, usando as construções da AST fornecidas pela infraestrutura do projeto, como program, class_, method, attr, formal, assign, cond, loop, block, let, dispatch, static_dispatch e outras. Além disso, foi feito o controle explícito de localização por meio de YYLTYPE, YYLLOC_DEFAULT e SET_NODELOC, para que cada nó da árvore fosse associado corretamente à linha relevante do programa.
+
+A gramática de expressões foi organizada separando famílias sintáticas como atribuição, dispatch, let, if, while, block, case, new, isvoid e expressões primárias. Em seguida, foram adicionados os operadores aritméticos, relacionais e unários, juntamente com declarações de precedência e associatividade. Isso foi necessário para resolver ambiguidades naturais da linguagem, como a interação entre ASSIGN, NOT, operadores aritméticos, comparação, @ e ..
+
+Também foi implementado tratamento de recuperação de erro em alguns pontos da gramática (declarações de classe, features, listas de formais, blocos, branches de case e bindings de let). Nessas produções, o uso do token especial error em conjunto com delimitadores como ; e , permitiu que o parser descartasse trechos malformados e retomasse a análise em um ponto seguro. Com isso, foi possível continuar o parsing após um erro e reportar múltiplos problemas em uma única execução, em vez de notificar e abortar na primeira falha.
+
+Sempre que possível, a gramática foi mantida próxima da sintaxe concreta de COOL, enquanto casos que exigiam transformação estrutural foram tratados diretamente nas ações semânticas. Um exemplo importante é let_binding_list, em que múltiplos bindings separados por vírgula foram convertidos em expressões let aninhadas, preservando a semântica esperada da linguagem.
+
+Finalmente, o parser foi testado nos casos a seguir (gerados por IA).
+
+good1.cl
+Teste básico de atributo com inicialização simples. Esse caso verifica se o parser reconhece corretamente uma classe contendo uma declaração de atributo terminada por ponto e vírgula.
+
+good2.cl
+Teste básico de método com um parâmetro formal e corpo simples. Esse caso verifica o reconhecimento de métodos, lista de formais, tipo de retorno e expressão no corpo.
+
+bad1.cl
+Teste de erro sintático em atributo sem ponto e vírgula final. Esse caso foi usado para verificar se o parser detecta corretamente a ausência do delimitador exigido pela gramática.
+
+bad2.cl
+Teste de erro sintático em método sem ponto e vírgula após a feature. Esse caso verifica se o parser rejeita corretamente uma declaração de método incompleta do ponto de vista sintático.
+
+recovery.cl
+Teste de recuperação de erro com múltiplas classes e declarações inválidas de atributo. Esse caso foi usado para verificar se, após encontrar um erro em uma feature, o parser consegue sincronizar novamente e continuar reconhecendo o restante do arquivo, inclusive em classes subsequentes.

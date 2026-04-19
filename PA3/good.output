@@ -1,0 +1,16 @@
+#5
+_program
+  #1
+  _class
+    A
+    Object
+    "good.cl"
+    (
+    )
+  #4
+  _class
+    BB__
+    A
+    "good.cl"
+    (
+    )
