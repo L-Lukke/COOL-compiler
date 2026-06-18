@@ -1,0 +1,4 @@
+bad.cl:16: Argument y of init has type Int; expected Bool.
+bad.cl:17: Method init expects 2 arguments, got 3.
+bad.cl:18: Undefined method iinit in type C.
+Compilation halted: semantic errors found.

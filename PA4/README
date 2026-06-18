@@ -1,0 +1,42 @@
+Write-up for PA4
+---------------
+
+A implementação do analisador semântico foi construída de forma incremental, começando pela representação global do ambiente de tipos e pela tabela de classes. A primeira etapa consistiu em inicializar os símbolos básicos da linguagem COOL, como Object, IO, Int, Bool, String, SELF_TYPE, Main, main e os nomes dos métodos das classes básicas. Esses símbolos foram centralizados em variáveis globais para permitir comparações diretas durante as verificações semânticas.
+
+Em seguida, foi implementada a estrutura ClassTable, responsável por instalar as classes básicas, registrar as classes definidas pelo usuário e validar a hierarquia de herança. A instalação das classes básicas inclui Object, IO, Int, Bool e String, com seus métodos e atributos predefinidos. Depois disso, as classes do programa são adicionadas à tabela, com verificações para impedir a redefinição de classes básicas, classes duplicadas e o uso inválido de SELF_TYPE como nome de classe.
+
+A construção do grafo de herança foi feita a partir das relações entre cada classe e sua superclasse. Nessa etapa, foram tratados erros como herança a partir de tipos proibidos (Int, Bool, String e SELF_TYPE) e herança de classes não definidas. Também foi implementada uma busca em profundidade com marcação por cores para detectar ciclos na hierarquia de herança. Essa validação é necessária antes do type checking propriamente dito, pois diversas regras semânticas dependem da relação de subtipo entre classes.
+
+Também foi implementada a validação inicial da tabela de classes. Além da ausência de ciclos, o analisador verifica se a classe Main existe, se ela possui o método main e se esse método não recebe parâmetros. Essa checagem garante que o programa tenha um ponto de entrada válido antes da análise das expressões.
+
+A segunda parte da implementação concentrou-se na construção dos ambientes de métodos, atributos e objetos. Para isso, foram usados mapas globais como methods_by_class e attrs_by_class, que associam cada classe aos seus métodos e atributos. Durante o type checking de uma classe, o ambiente de objetos é inicializado com self, seguido pelos atributos da classe e de seus ancestrais. Essa estrutura permite resolver identificadores locais, atributos herdados e referências a self de forma consistente.
+
+Além disso, foram implementadas verificações específicas para membros de classe. Métodos duplicados dentro da mesma classe são reportados, atributos duplicados são detectados e atributos herdados não podem ser redefinidos. Para métodos sobrescritos, o analisador verifica compatibilidade entre a assinatura do método da subclasse e a assinatura herdada, incluindo tipo de retorno, quantidade de parâmetros e tipos dos parâmetros.
+
+A etapa principal da implementação foi o type checking das expressões da AST. Para cada tipo de nó da linguagem, foi implementado um método type_check, responsável por verificar as regras semânticas aplicáveis e atribuir o tipo inferido ao nó correspondente. Expressões constantes recebem diretamente seus tipos básicos: inteiros recebem Int, booleanos recebem Bool e strings recebem String.
+
+As operações aritméticas (+, -, *, /) foram implementadas exigindo operandos do tipo Int e produzindo resultado Int. Operações relacionais como < e <= também exigem operandos Int, mas produzem resultado Bool. A igualdade foi tratada separadamente, respeitando a regra especial de COOL segundo a qual comparações entre tipos primitivos diferentes (Int, Bool e String) devem ser rejeitadas.
+
+As expressões de controle também receberam regras próprias. Em if, o predicado deve ter tipo Bool, e o tipo final da expressão é o menor ancestral comum entre os tipos dos ramos then e else. Em while, o predicado também deve ser Bool, e o tipo da expressão é sempre Object. Em blocos, o tipo resultante é o tipo da última expressão do bloco. Em case, o analisador verifica os tipos declarados em cada branch, impede branches duplicados para o mesmo tipo e calcula o menor ancestral comum entre os resultados das alternativas.
+
+A implementação de let foi feita com abertura de novo escopo no ambiente de objetos. O analisador impede o binding de self, verifica se o tipo declarado existe, checa a conformidade entre o tipo da expressão inicializadora e o tipo declarado, e só então adiciona a variável ao escopo para analisar o corpo do let. Esse tratamento garante que variáveis locais sejam resolvidas de forma isolada e que o escopo seja descartado ao final da expressão.
+
+As chamadas de método foram tratadas em duas modalidades: dispatch dinâmico e static dispatch. No dispatch dinâmico, o tipo do receptor é inferido, o método é procurado na classe correspondente e em sua cadeia de herança, e os argumentos reais são comparados com os parâmetros formais. No static dispatch, além dessas verificações, o analisador checa se o tipo estático indicado existe, se não é SELF_TYPE e se o tipo do receptor é subtipo do tipo declarado no dispatch. Em ambos os casos, quando o retorno do método é SELF_TYPE, o tipo resultante é ajustado ao tipo do receptor.
+
+Também foram implementadas regras para atribuição, instanciação e identificadores. A atribuição a self é proibida, e o identificador atribuído deve existir no ambiente. O tipo da expressão atribuída deve conformar ao tipo declarado do identificador. Para new, o analisador verifica se a classe instanciada existe, exceto no caso especial de SELF_TYPE. Para identificadores, o analisador consulta o ambiente de objetos e reporta erro quando o nome não está definido.
+
+Por fim, a função program_class::semant organiza a execução do analisador em fases. Primeiro são inicializados os símbolos e a tabela de classes. Depois são instaladas as classes do usuário, construído o grafo de herança e validada a estrutura global do programa. Em seguida, os membros das classes são registrados, e o type checking é executado sobre cada classe definida pelo usuário. Caso erros semânticos sejam encontrados, a compilação é interrompida com a mensagem apropriada.
+
+Finalmente, o analisador foi testado nos casos a seguir.
+
+good_case.cl
+Teste de expressão case com dispatch de método. Esse caso verifica se o analisador reconhece corretamente a classe A, o método f, a instanciação new A, o binding da variável de branch e a chamada x.f(). Também testa o cálculo do tipo resultante do case, já que as duas branches retornam expressões do tipo Int.
+
+good_let_block.cl
+Teste de let com múltiplos bindings, bloco, atribuição e operações aritméticas. Esse caso verifica se o analisador cria escopo para as variáveis locais x e y, permite a atribuição x <- x + y quando os tipos são compatíveis e infere corretamente o tipo do bloco a partir da última expressão, x * 3.
+
+bad_if.cl
+Teste negativo de estrutura condicional malformada. Como a expressão if true then 1 else 0 não contém o fechamento obrigatório fi, esse caso está relacionado principalmente à integração com o parser. Caso uma AST válida de if fosse produzida, a parte semântica verificaria se o predicado tem tipo Bool e calcularia o menor ancestral comum entre os ramos then e else.
+
+bad_malformed.cl
+Teste negativo de declaração de método malformada. O trecho f(x Int) : Int omite o separador : entre o nome do parâmetro e seu tipo, de modo que o erro esperado é sintático. Esse caso serve para verificar que entradas estruturalmente inválidas não chegam indevidamente à fase semântica. Se a assinatura fosse sintaticamente válida, a análise semântica verificaria o tipo do formal, o tipo de retorno e a conformidade entre o corpo do método e o tipo declarado
